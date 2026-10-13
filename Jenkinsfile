@@ -1,3 +1,4 @@
+```groovy
 pipeline {
     agent any
 
@@ -20,25 +21,14 @@ pipeline {
         stage('Configure Branch') {
             steps {
                 script {
-                    switch (env.BRANCH_NAME) {
-                        case 'dev':
-                            env.HOST_PORT = '5001'
-                            break
+                    def branch = env.BRANCH_NAME
 
-                        case 'stg':
-                            env.HOST_PORT = '5002'
-                            break
+                    // Automatically calculate a host port from the branch name
+                    def portOffset = Math.floorMod(branch.hashCode(), 1000)
+                    env.HOST_PORT = "${10000 + portOffset}"
 
-                        case 'prod':
-                            env.HOST_PORT = '5003'
-                            break
-
-                        default:
-                            error("Unsupported branch: ${env.BRANCH_NAME}")
-                    }
-
-                    echo "Branch: ${env.BRANCH_NAME}"
-                    echo "Host Port: ${env.HOST_PORT}"
+                    echo "Branch: ${branch}"
+                    echo "Automatically allocated host port: ${env.HOST_PORT}"
                 }
             }
         }
@@ -46,6 +36,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
+                    set -eu
+
                     docker build \
                         -t "$APP_NAME-$BRANCH_NAME:$BUILD_NUMBER" .
                 '''
@@ -85,6 +77,8 @@ pipeline {
         stage('Run Docker Container') {
             steps {
                 sh '''
+                    set -eu
+
                     docker rm -f "$APP_NAME-$BRANCH_NAME" \
                         2>/dev/null || true
 
@@ -110,3 +104,4 @@ pipeline {
         }
     }
 }
+```
